@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2020 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2021 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -107,7 +107,7 @@ def _QA_fetch_stock_adj(
         #res=[QA_util_dict_remove_key(data, '_id') for data in cursor]
 
         res = pd.DataFrame([item for item in cursor])
-        res.date = pd.to_datetime(res.date)
+        res.date = pd.to_datetime(res.date, utc=False)
         return res.set_index('date', drop=False)
 
 
@@ -143,7 +143,7 @@ class QA_DataStruct_Stock_day(_quotation_base):
 
     # 前复权
     def to_qfq(self):
-        if self.if_fq is 'bfq':
+        if self.if_fq == 'bfq':
             if len(self.code) < 1:
                 self.if_fq = 'qfq'
                 return self
@@ -154,7 +154,7 @@ class QA_DataStruct_Stock_day(_quotation_base):
                 try:
                     date = self.date
                     adj = _QA_fetch_stock_adj(
-                        self.code.to_list(),
+                        list(self.code),
                         str(date[0])[0:10],
                         str(date[-1])[0:10]
                     ).set_index(['date',
@@ -189,7 +189,7 @@ class QA_DataStruct_Stock_day(_quotation_base):
 
     # 后复权
     def to_hfq(self):
-        if self.if_fq is 'bfq':
+        if self.if_fq == 'bfq':
             if len(self.code) < 1:
                 self.if_fq = 'hfq'
                 return self
@@ -342,7 +342,7 @@ class QA_DataStruct_Stock_min(_quotation_base):
     __str__ = __repr__
 
     def to_qfq(self):
-        if self.if_fq is 'bfq':
+        if self.if_fq == 'bfq':
             if len(self.code) < 1:
                 self.if_fq = 'qfq'
                 return self
@@ -394,7 +394,7 @@ class QA_DataStruct_Stock_min(_quotation_base):
             return self
 
     def to_hfq(self):
-        if self.if_fq is 'bfq':
+        if self.if_fq == 'bfq':
             if len(self.code) < 1:
                 self.if_fq = 'hfq'
                 return self

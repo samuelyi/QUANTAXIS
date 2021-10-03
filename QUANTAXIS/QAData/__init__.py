@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2020 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2021 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,7 @@ from QUANTAXIS.QAData.data_resample import (
     QA_data_tick_resample_1min,
     QA_data_cryptocurrency_min_resample
 )
+from QUANTAXIS.QAData.paneldatastruct import QAPanelDataStruct
 from QUANTAXIS.QAData.dsmethods import (
     QDS_IndexDayWarpper,
     QDS_IndexMinWarpper,
@@ -67,3 +68,5 @@ from QUANTAXIS.QAData.QADataStruct import (
 from QUANTAXIS.QAData.QAFinancialStruct import QA_DataStruct_Financial
 from QUANTAXIS.QAData.QAIndicatorStruct import QA_DataStruct_Indicators
 from QUANTAXIS.QAData.QASeriesStruct import QA_DataStruct_Series
+
+from QUANTAXIS.QAData.paneldatastruct import QAPanelDataStruct
