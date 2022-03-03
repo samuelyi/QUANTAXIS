@@ -103,7 +103,7 @@ class QA_Position():
                  trades=None,
                  orders=None,
                  name=None,
-                 commission=0,
+                 commission=0.0015,
                  auto_reload=False,
                  allow_exceed=False,
 
@@ -381,6 +381,67 @@ class QA_Position():
             'trades': self.trades,
             'orders': self.orders
         }
+    @property
+    def qifimessage(self):
+        return {
+            # 基础字段
+            'code': self.code,  # 品种名称
+            'instrument_id': self.code,
+            'user_id': self.account_cookie,
+            'portfolio_cookie': self.portfolio_cookie,
+            'username': self.username,
+            'position_id': self.position_id,
+            'account_cookie': self.account_cookie,
+            'market_type': self.market_type,
+            'exchange_id': self.exchange_id,  # 交易所ID
+            # 持仓量
+            'volume_long_today': int(self.volume_long_today),
+            'volume_long_his': int(self.volume_long_his),
+            'volume_long': int(self.volume_long),
+            'volume_long_yd': 0,
+            'volume_short_yd': 0,
+            'volume_short_today': int(self.volume_short_today),
+            'volume_short_his': int(self.volume_short_his),
+            'volume_short': int(self.volume_short),
+            'pos_long_his': int(self.volume_long_his),
+            'pos_long_today': int(self.volume_long_today),
+            'pos_short_his': int(self.volume_short_his),
+            'pos_short_today': int(self.volume_short_today),
+            # 平仓委托冻结(未成交)
+            'volume_long_frozen_today': int(self.volume_long_frozen_today),
+            'volume_long_frozen_his': int(self.volume_long_frozen_his),
+            'volume_long_frozen': int(self.volume_long_frozen),
+            'volume_short_frozen_today': int(self.volume_short_frozen_today),
+            'volume_short_frozen_his': int(self.volume_short_frozen_his),
+            'volume_short_frozen': int(self.volume_short_frozen),
+            # 保证金
+            'margin_long': self.margin_long,       # 多头保证金
+            'margin_short': self.margin_short,
+            'margin': self.margin,
+            # 持仓字段
+            'position_price_long': self.position_price_long,  # 多头成本价
+            'position_cost_long': self.position_cost_long,   # 多头总成本(  总市值)
+            'position_price_short': self.position_price_short,
+            'position_cost_short': self.position_cost_short,
+            # 平仓字段
+            'open_price_long': self.open_price_long,  # 多头开仓价
+            'open_cost_long': self.open_cost_long,  # 多头开仓成本
+            'open_price_short': self.open_price_short,  # 空头开仓价
+            'open_cost_short': self.open_cost_short,  # 空头成本
+
+            # 扩展字段
+            'last_price': self.last_price,
+            # //多头浮动盈亏  ps.last_price * ps.volume_long * ps.ins->volume_multiple - ps.open_cost_long;
+            'float_profit_long': self.float_profit_long,
+            # //空头浮动盈亏  ps.open_cost_short - ps.last_price * ps.volume_short * ps.ins->volume_multiple;
+            'float_profit_short': self.float_profit_short,
+            # //浮动盈亏 = float_profit_long + float_profit_short
+            'float_profit': self.float_profit,
+            'position_profit_long': self.position_profit_long,  # //多头持仓盈亏
+            'position_profit_short': self.position_profit_short,  # //空头持仓盈亏
+            # //持仓盈亏 = position_profit_long + position_profit_short
+            'position_profit': self.position_profit
+        }
 
     @property
     def hold_detail(self):
@@ -558,14 +619,15 @@ class QA_Position():
                 # and self.volume_long>=amount:
                 if self.volume_long > 0:
                     self.position_cost_long = self.position_cost_long * \
-                        (self.volume_long - amount)/self.volume_long
+                        (self.volume_long)/self.volume_long+ amount
                     self.open_cost_long = self.open_cost_long * \
-                        (self.volume_long-amount)/self.volume_long
+                        (self.volume_long-amount)/self.volume_long +amount
 
                     self.volume_long_his -= amount
                     self.volume_long_frozen_today -= amount
 
                     marginValue = -1*(self.position_price_long * amount)
+                    
                     self.margin_long += marginValue
                     profit = (price - self.position_price_long) * amount
                     self.moneypresetLeft += (-marginValue + profit)
@@ -583,7 +645,7 @@ class QA_Position():
                     self.moneypresetLeft += (-marginValue + profit)
 
             else:
-                return 0, 0
+                return 0, 0,0
 
         elif towards == ORDER_DIRECTION.BUY_OPEN:
 
@@ -732,8 +794,9 @@ class QA_Position():
             self.margin_long += marginValue
             self.moneypresetLeft += (-marginValue + profit)
         # 计算收益/成本
-
-        return marginValue, profit
+        commission= self.calc_commission( price, amount, towards)
+        self.commission +=commission
+        return marginValue, profit, commission
 
     def settle(self):
         '''收盘后的结算事件
@@ -809,7 +872,17 @@ class QA_Position():
                 commission_fee = commission_fee_preset['commission_coeff_today_pervol'] * trade_amount + \
                     commission_fee_preset['commission_coeff_today_peramount'] * \
                     abs(value)
-            return commission_fee
+            
+        elif self.market_type == MARKET_TYPE.STOCK_CN:
+            value = trade_price * trade_amount
+            if trade_towards == ORDER_DIRECTION.BUY_OPEN:
+                """买入万 2 滑点"""
+                commission_fee = value *  0.0002
+            else:
+                """卖出千 1.3 手续费+ 万 2 滑点"""
+                commission_fee = value *  0.0015
+
+        return commission_fee
 
     def loadfrommessage(self, message):
         try:

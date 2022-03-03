@@ -31,9 +31,11 @@ by yutiansut
 2017/4/8
 """
 
-__version__ = '2.0.0.dev16'
+__version__ = '2.0.0.dev33'
 __author__ = 'yutiansut'
 
+import logging
+logging.disable(logging.INFO)
 import argparse
 # check
 import sys
@@ -258,7 +260,7 @@ from QUANTAXIS.QAUtil import (  # QAPARAMETER
     QA_util_to_list_from_numpy, QA_util_to_list_from_pandas,
     QA_util_to_pandas_from_json, QA_util_to_pandas_from_list, QA_util_web_ping,
     QATZInfo_CN, future_ip_list, info_ip_list, stock_ip_list, trade_date_sse,
-    QA_util_get_next_period)
+    QA_util_get_next_period, QA_util_get_real_tradeday)
 
 
 from QUANTAXIS.QAPubSub.consumer import subscriber, subscriber_topic, subscriber_routing
@@ -281,7 +283,7 @@ from QUANTAXIS.QAFactor.feature import QASingleFactor_DailyBase
 from QUANTAXIS.QAFactor.featurepool import MA10
 from QUANTAXIS.QAFactor.featureView import QAFeatureView
 from QUANTAXIS.QAFactor.featureAnalysis import QAFeatureAnalysis
-
+from QUANTAXIS.QAFactor.featurebacktest import QAFeatureBacktest
 
 if sys.version_info.major != 3 or sys.version_info.minor not in [4, 5, 6, 7, 8, 9]:
     print('wrong version, should be 3.4/3.5/3.6/3.7/3.8 version')

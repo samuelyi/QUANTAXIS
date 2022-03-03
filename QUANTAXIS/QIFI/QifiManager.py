@@ -68,14 +68,14 @@ class QA_QIFIMANAGER():
     def returns(self):
         returns = self.assets.pct_change()
 
-        returns.index = returns.index.tz_localize('Asia/Shanghai')
+        returns.index = returns.index
         return returns
 
     @property
     def benchmark_returns(self):
         returns = self.benchmark_assets.pct_change()
         try:
-            returns.index = returns.index.tz_localize('Asia/Shanghai')
+            returns.index = returns.index
         except:
             pass
         return returns
@@ -95,12 +95,17 @@ class QA_QIFIMANAGER():
         b = [(item['accounts']['balance'], item['trading_day']) for item in self.database.find(
             {'account_cookie': self.account_cookie}, {'_id': 0, 'accounts': 1, 'trading_day': 1})]
         res = pd.DataFrame(b, columns=['balance', 'trading_day']).dropna()
+
+
+        print(res.trading_day[0])
+        res = res[res.trading_day.apply(lambda x: x!='')]
         res = res.assign(datetime=pd.to_datetime(
-            res['trading_day']), balance=res.balance.apply(round, 2)).set_index('datetime').sort_index()
+            res['trading_day']), balance=res.balance.apply(round, 2)).dropna().set_index('datetime').sort_index()
         res = res.balance
         res.name = self.account_cookie
 
-        return res.bfill().ffill().loc[start:end]
+        print(res)
+        return res.bfill().ffill().sort_index().loc[start:end]
 
     def get_historytrade(self,):
         b = [item['trades'].values() for item in self.database.find(
@@ -141,10 +146,15 @@ class QA_QIFISMANAGER():
 
     """
 
-    def __init__(self, mongo_ip=mongo_ip, account_cookie=''):
-        self.database = pymongo.MongoClient(mongo_ip).quantaxis.history
-        self.database.create_index([("account_cookie", pymongo.ASCENDING),
-                                    ("trading_day", pymongo.ASCENDING)], unique=True)
+    def __init__(self, mongo_ip=mongo_ip, account_cookie='', model='BACKTEST'):
+
+        if model =='REALTIME':
+            self.database = pymongo.MongoClient(mongo_ip).QAREALTIME.account
+        else:
+
+            self.database = pymongo.MongoClient(mongo_ip).quantaxis.history
+            self.database.create_index([("account_cookie", pymongo.ASCENDING),
+                                        ("trading_day", pymongo.ASCENDING)], unique=True)
 
     def promise_list(self, value) -> list:
         return value if isinstance(value, list) else [value]
@@ -206,6 +216,18 @@ class QA_QIFISMANAGER():
         res = res.assign(account_cookie=res['user_id'], code=res['instrument_id'], tradetime=res['trade_date_time'].apply(
             lambda x:  datetime.datetime.fromtimestamp(x/1000000000))).set_index(['tradetime', 'code']).sort_index()
         return res.drop_duplicates().sort_index()
+
+    def get_historyorders(self, account_cookie):
+        b = [item['orders'].values() for item in self.database.find(
+            {'account_cookie': account_cookie}, {'_id': 0, 'orders': 1, 'trading_day': 1})]
+        i = []
+        for ix in b:
+            i.extend(list(ix))
+        res = pd.DataFrame(i)
+        res = res.assign(account_cookie=res['user_id'], code=res['instrument_id'], ordertime=res['insert_date_time'].apply(
+            lambda x:  datetime.datetime.fromtimestamp(x/1000000000))).set_index(['ordertime', 'code']).sort_index()
+        return res.drop_duplicates().sort_index()
+
 
     def rankstrategy(self, code):
         res = pd.concat([self.get_historyassets(i) for i in code], axis=1)

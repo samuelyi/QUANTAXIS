@@ -9,6 +9,7 @@ from alphalens.utils import get_clean_factor_and_forward_returns
 from qaenv import (clickhouse_ip, clickhouse_password, clickhouse_port,
                    clickhouse_user)
 from QUANTAXIS.QAFetch.QAClickhouse import QACKClient
+from QUANTAXIS.QAUtil import QA_util_get_next_day
 from scipy import stats
 
 """
@@ -34,8 +35,8 @@ class QAFeatureAnalysis():
         self.feature.name = self.featurename
 
         self.codelist = self.feature.index.levels[1].unique().tolist()
-        self.start = self.feature.index.levels[0][0]
-        self.end = self.feature.index.levels[0][-1]
+        self.start = str(self.feature.index.levels[0][0])[0:10]
+        self.end = str(self.feature.index.levels[0][-1])[0:10]
 
         self._host = host
         self._port = port
@@ -50,11 +51,11 @@ class QAFeatureAnalysis():
 
         if stock_data is None:
             self.stock_data = self.dataclient.get_stock_day_qfq_adv(
-                self.codelist, self.start, self.end)
+                self.codelist, self.start, QA_util_get_next_day(self.end, returnday))
         else:
             self.stock_data = stock_data
 
-        self.returns = self.make_ret(self.stock_data.data, returnday)
+        self.returns = self.make_ret(self.stock_data.data).dropna()
 
     def remake_returns(self, model='next_open', day=5):
         self.returns = self.make_ret(self.stock_data.data, model, day)
@@ -67,7 +68,7 @@ class QAFeatureAnalysis():
         """
         if model == 'next_open':
             r = data.groupby(level=1).open.apply(
-                lambda x: x.pct_change(day).shift(-day))
+                lambda x: x.pct_change(day).shift(-day-1))
             r.name = 'ret_{}'.format(day)
             return r
         elif model == 'close':
@@ -116,7 +117,9 @@ class QAFeatureAnalysis():
     @property
     @lru_cache()
     def concatRes(self):
-        res = pd.concat([self.feature, self.returns], axis=1)
+        res = pd.concat([self.feature, self.returns, ], axis=1)
+
+        res = pd.concat([res, self.get_industry().set_index(['date','order_book_id']).first_industry_name], axis=1)
         return res
 
     @property
@@ -146,6 +149,7 @@ class QAFeatureAnalysis():
 
         """
         return self.dataclient.get_stock_industry(self.codelist, self.start, self.end)
+
 
     def categorical(self, data: pd.DataFrame, key='industry'):
         """
